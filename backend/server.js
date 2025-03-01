@@ -26,7 +26,7 @@ db.connect(err => {
     console.log("Connected to MySQL database");
 });
 
-//make table
+//make table if it doesnt exist
 const createTableQuery = `CREATE TABLE IF NOT EXISTS ph_readings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ph_value FLOAT NOT NULL,
@@ -63,7 +63,7 @@ app.post("/api/ph-data", (req, res) => {
         if (err) {
             return res.status(500).json({ message: "Database error", error: err });
         }
-        res.json({ message: "pH value saved successfully", id: result.insertId });
+        res.json({ message: "pH value saved successfully", id: result.insertId, ph });
     });
 });
 

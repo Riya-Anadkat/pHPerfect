@@ -1,28 +1,18 @@
-import { StyleSheet } from 'react-native';
-import React, { useEffect, useState } from "react";
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
-import { fetchPhHistory } from "../../services/api";
+import { Text, View, StyleSheet } from "react-native";
 
-export default function TabOneScreen() {
-  const [phData, setPhData] = useState([{"id":1,"ph_value":2,"timestamp":"2025-02-19T18:16:43.000Z"},{"id":2,"ph_value":5,"timestamp":"2025-02-19T18:16:43.000Z"}]);
-
-  useEffect(() => {
-    const getData = async () => {
-        const data = await fetchPhHistory();
-        setPhData(data);
-    };
-    getData();
-  }, []);
-
-
+export default function Index() {
+  
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{JSON.stringify(phData)}</Text>
-
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <View style={styles.current_stats}>
+        <Text style={styles.text}>Current Statistics</Text>
+      </View>
+      <View style={styles.graph}>
+        <Text style={styles.text}>Timeline Graph</Text>
+      </View>
+      <View style={styles.summary}>
+        <Text style={styles.text}>Summary of All Statistics</Text>
+      </View>
     </View>
   );
 }
@@ -30,16 +20,45 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#E7E7E7",
+    alignItems: "flex-start",
+    padding: 10,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  text: {
+    color: "#000",
+    justifyContent: "center",
+    fontWeight: "400",
+    fontSize: 18,
+    padding: 10,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  current_stats: {
+    height: "15%",
+    width: "90%",
+    margin: 12,
+    borderWidth: 1,
+    borderColor: "#EC9595",
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  graph: {
+    height: "35%",
+    width: "90%",
+    margin: 12,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summary: {
+    height: "38%",
+    width: "90%",
+    margin: 12,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
