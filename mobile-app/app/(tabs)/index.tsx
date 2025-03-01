@@ -1,6 +1,7 @@
 import { Text, View, StyleSheet } from "react-native";
 
 export default function Index() {
+  
   return (
     <View style={styles.container}>
       <View style={styles.current_stats}>
