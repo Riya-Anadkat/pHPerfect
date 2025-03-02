@@ -10,6 +10,7 @@ import {
 	RefreshControl,
 	SafeAreaView,
 	Alert,
+	LogBox
 } from "react-native";
 
 import {
@@ -18,12 +19,15 @@ import {
 	Product,
 } from "@/services/suggestions-api";
 
+LogBox.ignoreLogs(["new NativeEventEmitter"]);
+
 export default function SuggestionsScreen() {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [recommendations, setRecommendations] =
 		useState<RecommendationResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [showFullAdvice, setShowFullAdvice] = useState(false);
 
 	// prototype
 	const mockUserData = {
@@ -100,12 +104,6 @@ export default function SuggestionsScreen() {
 					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
 				}
 			>
-				{/* Expert Advice Section */}
-				<View style={styles.adviceContainer}>
-					<Text style={styles.sectionTitle}>Expert Advice</Text>
-					<Text style={styles.adviceText}>{recommendations?.advice_text}</Text>
-				</View>
-
 				{/* pH Info */}
 				<View style={styles.phInfoContainer}>
 					<Text style={styles.phInfoText}>
@@ -118,6 +116,22 @@ export default function SuggestionsScreen() {
 						<Text style={styles.symptomsText}>
 							Symptoms: {recommendations.symptoms.join(", ")}
 						</Text>
+					)}
+				</View>
+				{/* Expert Advice Section */}
+				<View style={styles.adviceContainer}>
+					<Text style={styles.sectionTitle}>Expert Advice</Text>
+					{recommendations?.advice_text && (
+						<>
+							<Text style={styles.adviceText} numberOfLines={showFullAdvice ? undefined : 10}>
+								{recommendations.advice_text}
+							</Text>
+							<TouchableOpacity onPress={() => setShowFullAdvice(!showFullAdvice)}>
+								<Text style={styles.readMoreText}>
+									{showFullAdvice ? "Read Less" : "Read More"}
+								</Text>
+							</TouchableOpacity>
+						</>
 					)}
 				</View>
 
@@ -449,4 +463,10 @@ const styles = StyleSheet.create({
 		color: "#444",
 		marginTop: 5,
 	},
+	readMoreText: {
+		color: "#EC9595",
+		fontSize: 14,
+		fontWeight: "600",
+		marginTop: 5,
+	}
 });
