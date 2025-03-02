@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet, Dimensions } from "react-native";
+import { Text, View, StyleSheet, Dimensions, ScrollView} from "react-native";
 import { useFakeData } from "./fakeDataContext";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
@@ -23,7 +23,7 @@ export default function Index() {
         let updatedData = [...prevData, newEntry];
 
         // If the array has more than 12 entries, remove the oldest one
-        if (updatedData.length > 12) {
+        if (updatedData.length > 4) {
           updatedData.shift(); // Remove first element (oldest)
         }
 
@@ -121,77 +121,93 @@ export default function Index() {
   
 
   return (
-    <View style={styles.container}>
-      <View style={styles.current_stats}>
-        <Text style={styles.text}>Current Statistics</Text>
-        <Text style={styles.text}>{fakeReceivedData} pH</Text>
-      </View>
-      {/* pH Levels Over Time */}
-      <View style={{ marginVertical: 10 }}>
-        <Text style={{ fontSize: 16, fontWeight: "bold", color: "black" }}>
-          pH Levels Over Time
-        </Text>
-        <LineChart
-          data={{
-            labels: chartLabels,
-            datasets: [{ data: chartData, color: () => "black", strokeWidth: 2 }],
-          }}
-          width={Dimensions.get("window").width - 40}
-          height={220}
-          yAxisLabel=""
-          yAxisSuffix=""
-          yAxisInterval={1}
-          chartConfig={{
-            backgroundColor: "white",
-            backgroundGradientFrom: "white",
-            backgroundGradientTo: "white",
-            decimalPlaces: 2,
-            color: () => "black",
-            labelColor: () => "black",
-            style: { borderRadius: 16 },
-          }}
-          bezier
-          style={{ marginVertical: 8, borderRadius: 16 }}
-        />
-      </View>
-      
-      {/* Trendline (Linear Regression) */}
-    {trend && (
-      <View style={{ marginVertical: 10 }}>
-        <Text style={{ fontSize: 16, fontWeight: "bold", color: "black" }}>Trendline (Linear Regression)</Text>
-        <Text style={{ color: "black" }}>
-          Trend Line Equation: pH = {trend.slope.toFixed(2)} * time + {trend.intercept.toFixed(2)}
-        </Text>
-        <LineChart
-          data={{
-            labels: chartLabels,
-            datasets: [{ data: trendData, color: () => "black", strokeWidth: 2 }],
-          }}
-          width={Dimensions.get("window").width - 40}
-          height={220}
-          yAxisLabel=""
-          yAxisSuffix=""
-          yAxisInterval={1}
-          chartConfig={{
-            backgroundColor: "white",
-            backgroundGradientFrom: "white",
-            backgroundGradientTo: "white",
-            decimalPlaces: 2,
-            color: () => "black",
-            labelColor: () => "black",
-            style: { borderRadius: 16 },
-          }}
-          bezier
-          style={{ marginVertical: 8, borderRadius: 16 }}
-        />
-      </View>
-    )}
+    <ScrollView style={styles.scrollView}>
+      <View style={styles.container}>
+        <View style={styles.current_stats}>
+          <Text style={styles.text}>Current Statistics</Text>
+          <Text style={styles.text}>{fakeReceivedData} pH</Text>
+        </View>
 
-      <View style={styles.summary}>
-        <Text style={styles.text}>Summary of All Statistics</Text>
+        {/* pH Levels Over Time */}
+        <View style={{ marginVertical: 10 }}>
+          <Text style={{ fontSize: 16, fontWeight: "bold", color: "black" }}>
+            pH Levels Over Time
+          </Text>
+          <LineChart
+            data={{
+              labels: chartLabels,
+              datasets: [{ data: chartData, color: () => "black", strokeWidth: 2 }],
+            }}
+            width={Dimensions.get("window").width - 40}
+            height={220}
+            yAxisLabel=""
+            yAxisSuffix=""
+            yAxisInterval={1}
+            chartConfig={{
+              backgroundColor: "white",
+              backgroundGradientFrom: "white",
+              backgroundGradientTo: "white",
+              decimalPlaces: 2,
+              color: () => "black",
+              labelColor: () => "black",
+              style: { borderRadius: 16 },
+            }}
+            bezier
+            style={{ marginVertical: 8, borderRadius: 16 }}
+          />
+        </View>
 
+        {/* Trendline (Linear Regression) */}
+        {trend && (
+          <View style={{ marginVertical: 10 }}>
+            <Text style={{ fontSize: 16, fontWeight: "bold", color: "black" }}>
+              Trendline (Linear Regression)
+            </Text>
+            <Text style={{ color: "black" }}>
+              Trend Line Equation: pH = {trend.slope.toFixed(2)} * time + {trend.intercept.toFixed(2)}
+            </Text>
+            <LineChart
+              data={{
+                labels: chartLabels,
+                datasets: [{ data: trendData, color: () => "black", strokeWidth: 2 }],
+              }}
+              width={Dimensions.get("window").width - 40}
+              height={220}
+              yAxisLabel=""
+              yAxisSuffix=""
+              yAxisInterval={1}
+              chartConfig={{
+                backgroundColor: "white",
+                backgroundGradientFrom: "white",
+                backgroundGradientTo: "white",
+                decimalPlaces: 2,
+                color: () => "black",
+                labelColor: () => "black",
+                style: { borderRadius: 16 },
+              }}
+              bezier
+              style={{ marginVertical: 8, borderRadius: 16 }}
+            />
+          </View>
+        )}
+
+        <View style={styles.summary}>
+          <Text style={styles.text}>Summary of All Statistics</Text>
+
+          {/* pH Data Stats */}
+          {stats && (
+            <View style={{ marginVertical: 10 }}>
+              <Text>Mean pH: {stats.mean.toFixed(2)}</Text>
+              <Text>Median pH: {stats.median}</Text>
+              <Text>Min pH: {stats.min}</Text>
+              <Text>Max pH: {stats.max}</Text>
+              <Text>Range: {stats.range}</Text>
+              <Text>Std Dev: {stats.stdDev.toFixed(2)}</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -202,6 +218,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     padding: 10,
   },
+  scrollView: {
+		flex: 1,
+		padding: 15,
+	},
   text: {
     color: "#000",
     justifyContent: "center",
