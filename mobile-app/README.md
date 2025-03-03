@@ -10,3 +10,7 @@ npx expo run:ios --device
 ## Phone Simulator (not needed)
 
 eas login
+
+## Get Firebase Credentials
+
+get firebase credentials through secrets

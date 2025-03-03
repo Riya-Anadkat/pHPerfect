@@ -1,20 +1,25 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import {
-  StyleSheet,
   Text,
   View,
+  StyleSheet,
+  TextInput,
   Button,
+  Alert,
+  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   Platform,
-  Alert,
-  TextInput,
 } from "react-native";
+import { useRouter } from "expo-router";
+import { auth } from "../utils/firebaseConfig";
+import { signOut, updatePassword } from "firebase/auth";
 import { LogBox } from "react-native";
 import * as Location from "expo-location";
 import base64 from "base64-js";
 import { useFakeData } from "./fakeDataContext";
 
+// BLE related imports and setup
 let BleManager: any;
 let bleManager: any;
 
@@ -35,6 +40,7 @@ const CHARACTERISTIC_UUID = "87654321-4321-4321-4321-0987654321ba";
 // export const PhDataContext = createContext<{ receivedData: string, setReceivedData: React.Dispatch<React.SetStateAction<string>> } | null>(null);
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -85,6 +91,7 @@ export default function SettingsScreen() {
     }
   }, [connectedDevice]);
 
+  // BLE related functions
   const requestPermissions = async () => {
     try {
       if (Platform.OS === "android") {
@@ -264,96 +271,174 @@ export default function SettingsScreen() {
     }
   };
 
+  // Account related functions
+  // In your settings.tsx file
+
+  // Add this import if you don't have it already
+
+  // Then modify your handleUpdate function:
   const handleUpdate = async () => {
-    if (!username || !password) {
-      Alert.alert("Error", "Please enter both username and password");
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to update your settings");
       return;
     }
 
-    setLoading(true);
-
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      Alert.alert("Success", "Your credentials have been updated!");
+    // If only updating username
+    if (username && !password) {
+      // Implement user profile update if needed
+      // Note: Firebase auth doesn't store usernames by default
+      // You'd need to store this in a database
+      Alert.alert("Success", "Username updated successfully");
       setUsername("");
-      setPassword("");
-    } catch (error) {
-      Alert.alert("Error", "Failed to update credentials. Try again.");
-    } finally {
-      setLoading(false);
+      return;
+    }
+
+    // If updating password
+    if (password) {
+      setLoading(true);
+
+      try {
+        // Update the password
+        await updatePassword(user, password);
+
+        Alert.alert("Success", "Your password has been updated!");
+        setPassword("");
+      } catch (error: any) {
+        // Type the error as 'any' to access the code property
+        console.error("Error updating password:", error);
+
+        // If the error is due to requiring recent login
+        if (error.code === "auth/requires-recent-login") {
+          Alert.alert(
+            "Authentication Required",
+            "Please log out and log back in to change your password",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Log Out",
+                onPress: async () => {
+                  await signOut(auth);
+                  router.replace("/login");
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert(
+            "Error",
+            `Failed to update password: ${error.message || "Unknown error"}`
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
     }
   };
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace("/login");
+    } catch (error) {
+      Alert.alert("Error", "Failed to log out. Please try again.");
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Connect your pH hair device</Text>
-      <Text style={styles.label}>pH: {receivedData}</Text>
+    <ScrollView style={styles.container}>
+      {/* Device Connection Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Connect Your Device</Text>
+        <Text style={styles.label}>pH: {receivedData || "Not connected"}</Text>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!connectedDevice ? (
-        <View style={styles.scanSection}>
-          <Button
-            title={isScanning ? "Scanning..." : "Scan for Devices"}
-            onPress={startScan}
-            disabled={isScanning || !locationPermission || !bleAvailable}
-          />
+        {!connectedDevice ? (
+          <View style={styles.scanSection}>
+            <Button
+              title={isScanning ? "Scanning..." : "Scan for Devices"}
+              onPress={startScan}
+              disabled={isScanning || !locationPermission || !bleAvailable}
+            />
 
-          {isScanning && <ActivityIndicator style={styles.loader} />}
+            {isScanning && <ActivityIndicator style={styles.loader} />}
 
-          <ScrollView style={styles.deviceList}>
-            {devices.map((device) => (
-              <View key={device.id} style={styles.deviceItem}>
-                <Text style={styles.deviceName}>
-                  {device.name || "Unnamed Device"}
-                </Text>
-                <Text style={styles.deviceId}>ID: {device.id}</Text>
-                <Button
-                  title="Connect"
-                  onPress={() => connectToDevice(device)}
-                />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      ) : (
-        <View style={styles.controlSection}>
-          <Text style={styles.connectedText}>
-            Connected to: {connectedDevice.name || connectedDevice.id}
-          </Text>
-
-          <View style={styles.buttonRow}>
-            <Button title="Disconnect" onPress={disconnectDevice} color="red" />
+            <ScrollView style={styles.deviceList}>
+              {devices.map((device) => (
+                <View key={device.id} style={styles.deviceItem}>
+                  <Text style={styles.deviceName}>
+                    {device.name || "Unnamed Device"}
+                  </Text>
+                  <Text style={styles.deviceId}>ID: {device.id}</Text>
+                  <Button
+                    title="Connect"
+                    onPress={() => connectToDevice(device)}
+                  />
+                </View>
+              ))}
+            </ScrollView>
           </View>
-        </View>
-      )}
-      {/* </View> */}
-      <Text style={styles.label}>New Username:</Text>
-      <TextInput
-        style={styles.input}
-        value={username}
-        onChangeText={setUsername}
-        placeholder="Enter new username"
-        autoCapitalize="none"
-      />
+        ) : (
+          <View style={styles.controlSection}>
+            <Text style={styles.connectedText}>
+              Connected to: {connectedDevice.name || connectedDevice.id}
+            </Text>
 
-      <Text style={styles.label}>New Password:</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Enter new password"
-        secureTextEntry
-      />
-      <View style={styles.button}>
-        <Button
-          color="#fff"
-          title={loading ? "Updating..." : "Submit"}
+            <View style={styles.buttonRow}>
+              <Button
+                title="Disconnect"
+                onPress={disconnectDevice}
+                color="red"
+              />
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Account Settings Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account Settings</Text>
+
+        <Text style={styles.label}>New Username:</Text>
+        <TextInput
+          style={styles.input}
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Enter new username"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>New Password:</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          placeholder="Enter new password"
+          secureTextEntry
+        />
+
+        <TouchableOpacity
+          style={styles.updateButton}
           onPress={handleUpdate}
           disabled={loading}
-        />
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Updating..." : "Update Credentials"}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </View>
+
+      {/* Logout Section */}
+      <View style={styles.section}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.buttonText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -361,85 +446,89 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#E7E7E7",
-    alignItems: "flex-start",
-    paddingTop: 30,
-    padding: 10,
-  },
-  container2: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
     padding: 16,
-    paddingTop: 40,
   },
-  label: {
-    fontSize: 16,
-    margin: 12,
-    fontWeight: "400",
-    color: "#000",
-  },
-  input: {
-    height: 50,
-    width: "90%",
-    borderWidth: 2,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    margin: 12,
-  },
-  button: {
-    width: "90%",
-    margin: 12,
-    borderWidth: 1,
-    borderRadius: 10,
-    borderColor: "#ccc",
-    padding: 10,
-    backgroundColor: "#EC9595",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
+  section: {
     marginBottom: 20,
-    textAlign: "center",
-  },
-  error: {
-    color: "red",
-    marginBottom: 10,
-    padding: 10,
-    backgroundColor: "#ffeeee",
-    borderRadius: 4,
-  },
-  info: {
-    color: "#333",
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: "#e6f7ff",
-    borderRadius: 4,
-    lineHeight: 22,
-  },
-  scanSection: {
-    flex: 1,
-  },
-  loader: {
-    marginTop: 10,
-  },
-  deviceList: {
-    marginTop: 20,
-    flex: 1,
-  },
-  deviceItem: {
-    padding: 12,
-    marginBottom: 10,
     backgroundColor: "white",
-    borderRadius: 8,
+    borderRadius: 10,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 16,
+    color: "#333",
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: "400",
+    color: "#333",
+  },
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    backgroundColor: "#f9f9f9",
+  },
+  updateButton: {
+    backgroundColor: "#EC9595",
+    height: 50,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  logoutButton: {
+    backgroundColor: "#f44336",
+    height: 50,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  error: {
+    color: "red",
+    marginVertical: 10,
+    backgroundColor: "#ffeeee",
+    padding: 8,
+    borderRadius: 4,
+  },
+  scanSection: {
+    marginTop: 10,
+  },
+  loader: {
+    marginTop: 10,
+  },
+  deviceList: {
+    marginTop: 15,
+    maxHeight: 200,
+  },
+  deviceItem: {
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
   deviceName: {
     fontSize: 16,
     fontWeight: "bold",
+    marginBottom: 4,
   },
   deviceId: {
     fontSize: 12,
@@ -447,37 +536,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   controlSection: {
-    flex: 1,
+    marginTop: 10,
   },
   connectedText: {
     fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
     color: "green",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  dataDisplay: {
-    flex: 1,
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  dataTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
     marginBottom: 10,
   },
-  dataContent: {
-    flex: 1,
+  buttonRow: {
+    marginBottom: 10,
   },
 });
