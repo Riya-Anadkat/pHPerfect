@@ -19,7 +19,7 @@ import { signOut, updatePassword } from "firebase/auth";
 import { LogBox } from "react-native";
 import * as Location from "expo-location";
 import base64 from "base64-js";
-import { useFakeData } from "./fakeDataContext";
+import { useData } from "./dataContext";
 
 // BLE related imports and setup
 let BleManager: any;
@@ -50,7 +50,7 @@ export default function SettingsScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<any>(null);
-  const [receivedData, setReceivedData] = useState<string>("");
+  const { receivedData, setReceivedData } = useData();
   const [error, setError] = useState<string>("");
   const [locationPermission, setLocationPermission] = useState(false);
   const [bleAvailable, setBleAvailable] = useState(!!bleManager);

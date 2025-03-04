@@ -4,7 +4,7 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../utils/firebaseConfig";
-import { FakeDataProvider } from "./fakeDataContext";
+import { DataProvider } from "./dataContext";
 
 export default function TabLayout() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function TabLayout() {
   }, []);
 
   return (
-    <FakeDataProvider>
+    <DataProvider>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: "#EC9595",
@@ -79,6 +79,6 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </FakeDataProvider>
+    </DataProvider>
   );
 }

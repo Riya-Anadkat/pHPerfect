@@ -1,5 +1,5 @@
 import { Text, View, StyleSheet, Dimensions, ScrollView } from "react-native";
-import { useFakeData } from "./fakeDataContext";
+import { useData } from "./dataContext";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
 
@@ -18,15 +18,15 @@ type Stats = {
 };
 
 export default function Index() {
-  const { fakeReceivedData } = useFakeData();
+  const { receivedData } = useData();
   const [phData, setPhData] = useState<phDataPoints[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<Trend | null>(null);
 
   useEffect(() => {
-    if (fakeReceivedData !== "") {
+    if (receivedData !== "") {
       const time = getCurrentTime();
-      const newEntry = { ph: fakeReceivedData, time };
+      const newEntry = { ph: receivedData, time };
 
       setPhData((prevData) => {
         let updatedData = [...prevData, newEntry];
@@ -38,7 +38,7 @@ export default function Index() {
         return updatedData;
       });
     }
-  }, [fakeReceivedData]);
+  }, [receivedData]);
 
   useEffect(() => {
     if (phData.length > 0) {
@@ -96,7 +96,7 @@ export default function Index() {
     <ScrollView style={styles.container}>
       <View style={styles.currentStats}>
         <Text style={styles.currentStatsText}>
-          Current pH: {fakeReceivedData} pH
+          Current pH: {receivedData} pH
         </Text>
       </View>
       <View style={styles.section}>
