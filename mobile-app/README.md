@@ -1,5 +1,6 @@
 ## How to Run
 
+cd into mobile-app
 npm i
 expo prebuild
 expo run:ios
