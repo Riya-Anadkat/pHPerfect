@@ -40,8 +40,12 @@ export default function TabLayout() {
           name="index"
           options={{
             title: "Home",
-            tabBarIcon: ({ color }) => (
-              <FontAwesome name="home" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "home-sharp" : "home-outline"}
+                color={color}
+                size={24}
+              />
             ),
             headerTitle: "Your Hair Health",
           }}
@@ -50,8 +54,12 @@ export default function TabLayout() {
           name="suggestions"
           options={{
             title: "Suggestions",
-            tabBarIcon: ({ color }) => (
-              <FontAwesome name="shopping-bag" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "bag" : "bag-outline"}
+                color={color}
+                size={24}
+              />
             ),
             headerTitle: "Recommended Products",
           }}
@@ -60,8 +68,12 @@ export default function TabLayout() {
           name="settings"
           options={{
             title: "Settings",
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="settings-outline" size={24} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "cog" : "cog-outline"}
+                color={color}
+                size={24}
+              />
             ),
             headerTitle: "Account Settings",
           }}

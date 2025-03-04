@@ -93,20 +93,50 @@ export default function Index() {
   };
 
   return (
-    <ScrollView style={styles.scrollView}>
-      <View style={styles.container}>
-        <View style={styles.currentStats}>
-          <Text style={styles.text}>
-            Current Statistics: {fakeReceivedData} pH
-          </Text>
-        </View>
-        <Text style={styles.sectionTitle}>pH Levels Over Time</Text>
-        <View style={styles.statsCard1}>
+    <ScrollView style={styles.container}>
+      <View style={styles.currentStats}>
+        <Text style={styles.currentStatsText}>
+          Current pH: {fakeReceivedData} pH
+        </Text>
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
+        <LineChart
+          data={{
+            labels: chartLabels,
+            datasets: [
+              { data: chartData, color: () => "black", strokeWidth: 2 },
+            ],
+          }}
+          width={Dimensions.get("window").width - 50}
+          height={230}
+          yAxisLabel=""
+          yAxisSuffix=""
+          yAxisInterval={1}
+          chartConfig={{
+            backgroundColor: "white",
+            backgroundGradientFrom: "white",
+            backgroundGradientTo: "white",
+            decimalPlaces: 2,
+            color: () => "black",
+            labelColor: () => "black",
+            style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
+            propsForLabels: {
+              fontSize: 12,
+            },
+          }}
+          bezier
+          style={styles.chartStyle}
+        />
+      </View>
+      {trend && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Trendline</Text>
           <LineChart
             data={{
               labels: chartLabels,
               datasets: [
-                { data: chartData, color: () => "black", strokeWidth: 2 },
+                { data: trendData, color: () => "black", strokeWidth: 2 },
               ],
             }}
             width={Dimensions.get("window").width - 50}
@@ -121,78 +151,41 @@ export default function Index() {
               decimalPlaces: 2,
               color: () => "black",
               labelColor: () => "black",
-              style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
+              style: {
+                borderRadius: 16,
+                paddingLeft: 0,
+                paddingBottom: 0,
+              },
               propsForLabels: {
                 fontSize: 12,
               },
             }}
             bezier
-            style={styles.chartStyle1}
+            style={styles.chartStyle}
           />
         </View>
-        <Text style={styles.sectionTitle}>Trendline (Linear Regression)</Text>
-
-        {trend && (
-          <View style={styles.statsCard1}>
-            {/* TODO: CHANGE THIS TITLE NOT USER FRIENDLY */}
-
-            {/* <Text style={styles.text2}>
-              {/* Trend Line Equation: pH = {trend.slope.toFixed(2)} * time +{" "} */}
-            {/* {trend.intercept.toFixed(2)} */}
-            {/* </Text> */}
-            <LineChart
-              data={{
-                labels: chartLabels,
-                datasets: [
-                  { data: trendData, color: () => "black", strokeWidth: 2 },
-                ],
-              }}
-              width={Dimensions.get("window").width - 50}
-              height={230}
-              yAxisLabel=""
-              yAxisSuffix=""
-              yAxisInterval={1}
-              chartConfig={{
-                backgroundColor: "white",
-                backgroundGradientFrom: "white",
-                backgroundGradientTo: "white",
-                decimalPlaces: 2,
-                color: () => "black",
-                labelColor: () => "black",
-                style: {
-                  borderRadius: 16,
-                  paddingLeft: 0,
-                  paddingBottom: 0,
-                },
-                propsForLabels: {
-                  fontSize: 12,
-                },
-              }}
-              bezier
-              style={styles.chartStyle2}
-            />
+      )}
+      {stats && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Summary of All Statistics</Text>
+          <View style={styles.row}>
+            <Text style={styles.statsText}>
+              Mean pH: {stats.mean.toFixed(2)}
+            </Text>
+            <Text style={styles.statsText}>Median pH: {stats.median}</Text>
           </View>
-        )}
-        <Text style={styles.sectionTitle}>Summary of All Statistics</Text>
-        {stats && (
-          <View style={styles.statsCard2}>
-            <View style={styles.row}>
-              <Text style={styles.statsText}>
-                Mean pH: {stats.mean.toFixed(2)}
-              </Text>
-              <Text style={styles.statsText}>Median pH: {stats.median}</Text>
-              <Text style={styles.statsText}>
-                Std Dev: {stats.stdDev.toFixed(2)}{" "}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.statsText}>Min pH: {stats.min}</Text>
-              <Text style={styles.statsText}>Max pH: {stats.max}</Text>
-              <Text style={styles.statsText}>Range: {stats.range}</Text>
-            </View>
+          <View style={styles.row}>
+            <Text style={styles.statsText}>Min pH: {stats.min}</Text>
+            <Text style={styles.statsText}>Max pH: {stats.max}</Text>
           </View>
-        )}
-      </View>
+          <View style={styles.row}>
+            <Text style={styles.statsText}>Range: {stats.range}</Text>
+            <Text style={styles.statsText}>
+              Std Dev: {stats.stdDev.toFixed(2)}{" "}
+            </Text>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -201,87 +194,51 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#E7E7E7",
-    alignItems: "flex-start",
-    padding: 10,
+    padding: 16,
   },
-  scrollView: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: "#E7E7E7",
+  section: {
+    marginBottom: 20,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  text: {
-    color: "#fff",
+  currentStats: {
+    alignItems: "center",
     justifyContent: "center",
-    fontWeight: "400",
-    fontSize: 18,
-    padding: 10,
+    marginBottom: 20,
+    backgroundColor: "#EC9595",
+    borderRadius: 10,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  text2: {
-    color: "#000",
-    // justifyContent: "center",
-    fontWeight: "400",
+  sectionTitle: {
     fontSize: 18,
-    paddingBottom: 10,
-    margin: 20,
+    fontWeight: "600",
+    marginBottom: 16,
+    color: "#333",
+  },
+  currentStatsText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "600",
+    padding: 3,
   },
   statsText: {
     color: "#000",
     fontWeight: "400",
     fontSize: 18,
     padding: 2,
-    marginLeft: 20,
   },
-  currentStats: {
-    height: "8%",
-    width: "100%",
-    backgroundColor: "#EC9595",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  statsCard1: {
-    height: "30%",
-    width: "100%",
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
-    // marginBottom: 20,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  statsCard2: {
-    height: "15%",
-    width: "100%",
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 8,
-    marginBottom: 15,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 10,
-    color: "#333",
-    padding: 15,
-  },
-  chartStyle1: {
+  chartStyle: {
     marginVertical: 0,
     borderRadius: 10,
     marginLeft: 0,
@@ -289,16 +246,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 0,
   },
-  chartStyle2: {
-    marginVertical: 0,
-    borderRadius: 10,
-    marginLeft: 0,
-    marginTop: 20,
-    marginRight: 20,
-  },
   row: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-evenly",
   },
   item: {
     flex: 1,
