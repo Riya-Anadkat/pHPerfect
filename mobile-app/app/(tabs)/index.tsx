@@ -27,10 +27,10 @@ type Stats = {
 export default function Index() {
   const { receivedData } = useData();
   const [phData, setPhData] = useState<phDataPoints[]>([]);
-  const [allphData, setAllPhData] = useState<phDataPoints[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
+  const [overallData, setOverallData] = useState<phDataPoints[]>([]);
 
   useEffect(() => {
     console.log(" data:", receivedData);
@@ -48,38 +48,58 @@ export default function Index() {
 
       setPhData((prevData) => {
         let updatedData = [...prevData, newEntry];
+        console.log("overall", overallData);
 
-        if (updatedData.length > 4) {
+        if (updatedData.length > 10) {
           updatedData.shift();
         }
 
         return updatedData;
       });
+
+      setOverallData((prevData) => {
+        let updatedOverallData = [...prevData, newEntry];
+        return updatedOverallData; // Store the overall data in state
+      });
     }
   }, [receivedData]);
 
   useEffect(() => {
-    setAllPhData((prevData) => [...prevData, ...phData]);
     if (phData.length > 0) {
-      setStats(calculateStats(allphData));
-      setTrend(calculateTrend(allphData));
+      setStats(calculateStats(overallData)); // Use overallData for stats
+      // setStats(calculateStats(phData));
+      setTrend(calculateTrend(phData));
     }
-  }, [phData]);
+  }, [phData, overallData]);
 
   const getCurrentTime = () => {
     const now = new Date();
     return now.toLocaleTimeString();
   };
 
+  // Format time for x-axis labels
+  // const formatTimeForChart = (timeString: string) => {
+  //   // Extract just the hours and minutes
+  //   const timeParts = timeString.split(":");
+  //   return `${timeParts[0]}:${timeParts[1]}`;
+  // };
+
+  // Then when creating your chart
+  const chartLabels = phData.map((item, index) => {
+    // Only show every other label to prevent crowding
+    return index % 3 === 0 ? item.time : "";
+  });
+
   const chartData = phData.map((item) => parseFloat(item.ph));
-  const chartLabels = phData.map((item) => item.time);
+  // const chartLabels = phData.map((item) => item.time);
   const trendData = phData.map((_, index) =>
     trend ? trend.slope * index + trend.intercept : 0
   );
 
   const calculateStats = (data: phDataPoints[]): Stats | null => {
     if (!data.length) return null;
-    const values = data.map((item) => parseFloat(item.ph));
+    const values = overallData.map((item) => parseFloat(item.ph));
+    // const values = data.map((item) => parseFloat(item.ph));
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
@@ -121,6 +141,18 @@ export default function Index() {
     );
   }
 
+  const withAxisControl = [
+    3.5, // Min value (will be invisible)
+    9.5, // Max value (will be invisible)
+    ...chartData,
+  ];
+
+  const trendWithAxisControl = [
+    3.5, // Min value (will be invisible)
+    9.5, // Max value (will be invisible)
+    ...trendData,
+  ];
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.currentStats}>
@@ -128,46 +160,64 @@ export default function Index() {
           Current pH: {receivedData} pH
         </Text>
       </View>
-      {phData.length > 1 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
-          <LineChart
-            data={{
-              labels: chartLabels.map(label => label.replace(" PM", "").replace(" AM", "")),
-              datasets: [
-          { data: chartData, color: () => "black", strokeWidth: 2 },
-              ],
-            }}
-            width={Dimensions.get("window").width - 50}
-            height={230}
-            yAxisLabel=""
-            yAxisSuffix=""
-            yAxisInterval={1}
-            chartConfig={{
-              backgroundColor: "white",
-              backgroundGradientFrom: "white",
-              backgroundGradientTo: "white",
-              decimalPlaces: 2,
-              color: () => "black",
-              labelColor: () => "black",
-              style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
-              propsForLabels: {
-                fontSize: 12,
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
+        <LineChart
+          data={{
+            labels: chartLabels,
+            // datasets: [
+            //   { data: chartData, color: () => "black", strokeWidth: 2 },
+            // ],
+            datasets: [
+              {
+                data: withAxisControl,
+                color: (opacity = 1) => {
+                  // Make the first two points (min/max controls) transparent
+                  return opacity < 1 ? `rgba(0, 0, 0, ${opacity})` : "black";
+                },
+                withDots: false, // Hide dots for all points to avoid showing the min/max points
               },
-            }}
-            bezier
-            style={styles.chartStyle}
-          />
-        </View>
-      )}
+            ],
+          }}
+          width={Dimensions.get("window").width - 50}
+          height={230}
+          yAxisLabel=""
+          yAxisSuffix=""
+          yAxisInterval={1}
+          chartConfig={{
+            backgroundColor: "white",
+            backgroundGradientFrom: "white",
+            backgroundGradientTo: "white",
+            decimalPlaces: 2,
+            color: () => "black",
+            labelColor: () => "black",
+            style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
+            propsForLabels: {
+              fontSize: 12,
+            },
+          }}
+          bezier
+          style={styles.chartStyle}
+        />
+      </View>
       {trend && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trendline</Text>
           <LineChart
             data={{
               labels: chartLabels,
+              // datasets: [
+              //   { data: trendData, color: () => "black", strokeWidth: 2 },
+              // ],
               datasets: [
-                { data: trendData, color: () => "black", strokeWidth: 2 },
+                {
+                  data: trendWithAxisControl,
+                  color: (opacity = 1) => {
+                    // Make the first two points (min/max controls) transparent
+                    return opacity < 1 ? `rgba(0, 0, 0, ${opacity})` : "black";
+                  },
+                  withDots: false, // Hide dots for all points to avoid showing the min/max points
+                },
               ],
             }}
             width={Dimensions.get("window").width - 50}
