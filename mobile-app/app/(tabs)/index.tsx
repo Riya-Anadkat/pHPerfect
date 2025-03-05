@@ -1,3 +1,4 @@
+import { useData } from "./dataContext";
 import {
   Text,
   View,
@@ -6,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { useFakeData } from "./fakeDataContext";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
 
@@ -25,24 +25,26 @@ type Stats = {
 };
 
 export default function Index() {
-  const { fakeReceivedData } = useFakeData();
+  const { receivedData } = useData();
   const [phData, setPhData] = useState<phDataPoints[]>([]);
+  const [allphData, setAllPhData] = useState<phDataPoints[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load posts when component mounts
   useEffect(() => {
-    // Simulate fetching posts from backend
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-  }, []);
+    console.log(" data:", receivedData);
 
-  useEffect(() => {
-    if (fakeReceivedData !== "") {
+    if(phData.length < 1) {
+      setLoading(true);
+    }
+    else{
+      setLoading(false);
+    }
+
+    if (receivedData != "") {
       const time = getCurrentTime();
-      const newEntry = { ph: fakeReceivedData, time };
+      const newEntry = { ph: receivedData, time };
 
       setPhData((prevData) => {
         let updatedData = [...prevData, newEntry];
@@ -54,12 +56,13 @@ export default function Index() {
         return updatedData;
       });
     }
-  }, [fakeReceivedData]);
+  }, [receivedData]);
 
   useEffect(() => {
+    setAllPhData((prevData) => [...prevData, ...phData]);
     if (phData.length > 0) {
-      setStats(calculateStats(phData));
-      setTrend(calculateTrend(phData));
+      setStats(calculateStats(allphData));
+      setTrend(calculateTrend(allphData));
     }
   }, [phData]);
 
@@ -107,7 +110,7 @@ export default function Index() {
     const intercept = (sumY - slope * sumX) / n;
     return { slope, intercept };
   };
-
+ 
   // Loading state
   if (loading) {
     return (
@@ -122,39 +125,41 @@ export default function Index() {
     <ScrollView style={styles.container}>
       <View style={styles.currentStats}>
         <Text style={styles.currentStatsText}>
-          Current pH: {fakeReceivedData} pH
+          Current pH: {receivedData} pH
         </Text>
       </View>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
-        <LineChart
-          data={{
-            labels: chartLabels,
-            datasets: [
-              { data: chartData, color: () => "black", strokeWidth: 2 },
-            ],
-          }}
-          width={Dimensions.get("window").width - 50}
-          height={230}
-          yAxisLabel=""
-          yAxisSuffix=""
-          yAxisInterval={1}
-          chartConfig={{
-            backgroundColor: "white",
-            backgroundGradientFrom: "white",
-            backgroundGradientTo: "white",
-            decimalPlaces: 2,
-            color: () => "black",
-            labelColor: () => "black",
-            style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
-            propsForLabels: {
-              fontSize: 12,
-            },
-          }}
-          bezier
-          style={styles.chartStyle}
-        />
-      </View>
+      {phData.length > 1 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
+          <LineChart
+            data={{
+              labels: chartLabels.map(label => label.replace(" PM", "").replace(" AM", "")),
+              datasets: [
+          { data: chartData, color: () => "black", strokeWidth: 2 },
+              ],
+            }}
+            width={Dimensions.get("window").width - 50}
+            height={230}
+            yAxisLabel=""
+            yAxisSuffix=""
+            yAxisInterval={1}
+            chartConfig={{
+              backgroundColor: "white",
+              backgroundGradientFrom: "white",
+              backgroundGradientTo: "white",
+              decimalPlaces: 2,
+              color: () => "black",
+              labelColor: () => "black",
+              style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
+              propsForLabels: {
+                fontSize: 12,
+              },
+            }}
+            bezier
+            style={styles.chartStyle}
+          />
+        </View>
+      )}
       {trend && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trendline</Text>
