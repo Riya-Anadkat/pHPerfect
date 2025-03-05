@@ -10,35 +10,58 @@ import {
 	RefreshControl,
 	SafeAreaView,
 	Alert,
-	LogBox
+	LogBox,
+	TextInput
 } from "react-native";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
 	fetchRecommendations,
 	RecommendationResponse,
 	Product,
 } from "@/services/suggestions-api";
+import { useData } from "./dataContext";
 
-LogBox.ignoreLogs(["new NativeEventEmitter"]);
+LogBox.ignoreLogs(['new NativeEventEmitter']);
+const CACHE_EXPIRATION = 20 * 60 * 1000;
 
 export default function SuggestionsScreen() {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
+	const { receivedData, setReceivedData } = useData();
 	const [recommendations, setRecommendations] =
 		useState<RecommendationResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [showFullAdvice, setShowFullAdvice] = useState(false);
-
-	// prototype
+	const mapPHToDefaultSymptoms = (ph: number) => {
+		if (ph < 5.0) {
+			return ["itchiness", "dryness", "flakiness"];
+		} else if (ph >= 5.0 && ph < 5.5) {
+			return ["dryness", "sensitivity"];
+		} else if (ph >= 5.5 && ph < 6.0) {
+			return ["mild dandruff", "irritation"];
+		} else if (ph >= 6.0 && ph < 6.5) {
+			return ["dandruff", "itchiness", "oily scalp"];
+		} else if (ph >= 6.5 && ph < 7.0) {
+			return ["excess oil", "redness", "inflammation"];
+		} else if (ph >= 7.0) {
+			return ["excess oil", "severe dandruff", "scalp acne", "fungal infection"];
+		}
+		return [];
+	};
+		
 	const mockUserData = {
-		scalpPh: 6.2,
+		scalpPh: 4.2,
 		symptoms: ["dandruff", "itchiness", "dryness"],
 	};
+	const [symptoms, setSymptoms] = useState<string[]>([]);
 
-	// Function to load recommendations
+	const roundPh = (ph: number) => Math.round(ph * 2) / 2;
+
 	const loadRecommendations = async (refresh = false) => {
 		if (refresh) {
 			setRefreshing(true);
+			const CACHE_KEY = `recommendations_cache_${receivedData}`;
+			await AsyncStorage.removeItem(CACHE_KEY);
 		} else {
 			setLoading(true);
 		}
@@ -46,12 +69,29 @@ export default function SuggestionsScreen() {
 		setError(null);
 
 		try {
+			const roundedPh = (parseFloat(receivedData) || 0);
+			const CACHE_KEY = `recommendations_cache_${roundedPh}`;
+
+			const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+			if (cachedData && symptoms.length === 0) {
+				const { data, timestamp } = JSON.parse(cachedData);
+				if (Date.now() - timestamp < CACHE_EXPIRATION) {
+					setRecommendations(data);
+					setLoading(false);
+					setRefreshing(false);
+					return;
+				}
+			}
+
 			const data = await fetchRecommendations(
-				mockUserData.scalpPh,
-				mockUserData.symptoms
+				roundedPh,
+				symptoms.length > 0 ? symptoms : mapPHToDefaultSymptoms(roundedPh)
 			);
 
 			setRecommendations(data);
+			// console.log("Recommendations fetched:", data);
+			await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
+
 		} catch (err) {
 			setError("Failed to fetch recommendations. Please try again later.");
 			console.error("Error fetching recommendations:", err);
@@ -61,14 +101,17 @@ export default function SuggestionsScreen() {
 		}
 	};
 
+
 	// Fetch recommendations when component mounts
 	useEffect(() => {
 		loadRecommendations();
 	}, []);
 
 	// Handle pull-to-refresh
-	const onRefresh = () => {
-		loadRecommendations(true);
+	const onRefresh = async () => {
+		setRefreshing(true);
+		setSymptoms([]); 
+		await loadRecommendations(true);
 	};
 
 	// Render loading state
@@ -118,6 +161,17 @@ export default function SuggestionsScreen() {
 						</Text>
 					)}
 				</View>
+				{/* Add Symptoms Input */}
+				<View style={styles.adviceContainer}>
+					<Text style={styles.adviceText}>Enter Symptoms for more accurate suggestions:</Text>
+					<TextInput
+						style={styles.textInput}
+						placeholder="Enter symptoms separated by commas (eg. dandruff, itchiness)"
+						onChangeText={(text) => setSymptoms(text.split(",").map(s => s.trim()))}
+						onSubmitEditing={() => loadRecommendations(true)}
+						returnKeyType="done"
+					/>
+				</View>
 				{/* Expert Advice Section */}
 				<View style={styles.adviceContainer}>
 					<Text style={styles.sectionTitle}>Expert Advice</Text>
@@ -138,37 +192,16 @@ export default function SuggestionsScreen() {
 				{/* Product Recommendations */}
 				<Text style={styles.sectionTitle}>Recommended Products</Text>
 
-				{recommendations?.recommended_products.map((product, index) => (
+				{recommendations?.recommended_products.map((product, id) => (
 					<ProductCard
-						key={product.id}
+						key={id}
 						product={product}
-						onPress={() => handleProductPress(product)}
+						onPress={() => {}}
 					/>
 				))}
 			</ScrollView>
 		</SafeAreaView>
 	);
-
-	// Handle product press - show more details or add to favorites
-	function handleProductPress(product: Product) {
-		Alert.alert(
-			`${product.name}`,
-			`Would you like to see more details about this product?`,
-			[
-				{ text: "Cancel", style: "cancel" },
-				{
-					text: "View Details",
-					onPress: () => {
-						// In a real app, navigate to product details screen
-						Alert.alert(
-							"Product Details",
-							`Full details for ${product.name} would be shown here.`
-						);
-					},
-				},
-			]
-		);
-	}
 }
 
 // Product Card Component
@@ -251,7 +284,6 @@ function ProductCard({
 						<Text style={styles.productPrice}>Price: {product.price}</Text>
 					)}
 
-					{/* <Text style={styles.productSource}>Source: {product.source}</Text> */}
 				</View>
 			</View>
 
@@ -452,11 +484,11 @@ const styles = StyleSheet.create({
 		color: "#333",
 		marginBottom: 3,
 	},
-	// productSource: {
-	// 	fontSize: 12,
-	// 	color: "#666",
-	// 	fontStyle: "italic",
-	// },
+	productSource: {
+		fontSize: 12,
+		color: "#666",
+		fontStyle: "italic",
+	},
 	productDescription: {
 		fontSize: 14,
 		lineHeight: 20,
@@ -468,5 +500,15 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: "600",
 		marginTop: 5,
-	}
+	},
+	textInput: {
+		height: 40,
+		borderColor: "lightgrey",
+		borderWidth: 1,
+		marginTop: 15,
+		marginBottom: 10,
+		padding: 10,
+		fontSize: 12,
+		borderRadius: 10,
+	},
 });

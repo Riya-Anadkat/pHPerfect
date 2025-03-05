@@ -1,3 +1,5 @@
+
+import { savePhData } from "../../services/api.js";
 import React, { useState, useEffect, createContext, useContext } from "react";
 import {
   Text,
@@ -17,7 +19,7 @@ import { signOut, updatePassword } from "firebase/auth";
 import { LogBox } from "react-native";
 import * as Location from "expo-location";
 import base64 from "base64-js";
-import { useFakeData } from "./fakeDataContext";
+import { useData } from "./dataContext";
 
 // BLE related imports and setup
 let BleManager: any;
@@ -34,10 +36,10 @@ if (Platform.OS !== "web") {
 }
 
 LogBox.ignoreLogs(["new NativeEventEmitter"]);
+LogBox.ignoreLogs(["new NativeEventEmitter"]);
 
 const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab";
 const CHARACTERISTIC_UUID = "87654321-4321-4321-4321-0987654321ba";
-// export const PhDataContext = createContext<{ receivedData: string, setReceivedData: React.Dispatch<React.SetStateAction<string>> } | null>(null);
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -48,50 +50,51 @@ export default function SettingsScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<any>(null);
-  const [receivedData, setReceivedData] = useState<string>("");
+  const { receivedData, setReceivedData } = useData();
   const [error, setError] = useState<string>("");
   const [locationPermission, setLocationPermission] = useState(false);
   const [bleAvailable, setBleAvailable] = useState(!!bleManager);
 
-  const { fakeReceivedData, setFakeReceivedData } = useFakeData();
-
-  // const navigation = useNavigation();
-  // const { receivedData, setReceivedData } = useContext(PhDataContext)!;
-  console.log("recieve", receivedData);
-  console.log("fakerecieve", fakeReceivedData);
-  // console.log("connectedDevice", connectedDevice);
-
-  // setReceivedData("test");
-
   useEffect(() => {
-    console.log(devices);
     requestPermissions();
-
     return () => {
       if (bleManager) {
-        bleManager.destroy();
+        console.log("Cleaning up BLE manager...");
+        bleManager.stopDeviceScan();
       }
     };
   }, []);
+  useEffect(() => {
+    if (!connectedDevice) return;
+
+    const subscription = connectedDevice.onDisconnected((error: any) => {
+      console.log("Device disconnected", error);
+      setConnectedDevice(null);
+      setReceivedData("");
+      if (error) setError(`Device disconnected unexpectedly: ${error.message}`);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [connectedDevice]);
 
   useEffect(() => {
-    // if (connectedDevice) {
-    if (true) {
+    if (connectedDevice) {
       setupNotifications(connectedDevice);
-      let count = 0;
-      const interval = setInterval(() => {
-        count++;
-        if (count === 15) {
-          count = 0;
-        }
-        setFakeReceivedData(count.toString());
-        // readData();
-      }, 5000);
-      return () => clearInterval(interval);
     }
   }, [connectedDevice]);
 
-  // BLE related functions
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (receivedData) {
+        savePhData(receivedData);
+      }
+    }, 3600000); 
+
+    return () => clearInterval(interval);
+  }, [receivedData]);
+  
   const requestPermissions = async () => {
     try {
       if (Platform.OS === "android") {
@@ -99,9 +102,7 @@ export default function SettingsScreen() {
         setLocationPermission(status === "granted");
 
         if (status !== "granted") {
-          setError(
-            "Location permission is required for Bluetooth scanning on Android"
-          );
+          setError("Location permission is required for Bluetooth scanning on Android");
         }
       } else {
         setLocationPermission(true);
@@ -114,9 +115,7 @@ export default function SettingsScreen() {
 
   const startScan = () => {
     if (!bleAvailable) {
-      setError(
-        "BLE is not available. Make sure you are using a development build, not Expo Go."
-      );
+      setError("BLE is not available. Make sure you are using a development build, not Expo Go.");
       return;
     }
 
@@ -128,32 +127,41 @@ export default function SettingsScreen() {
     setIsScanning(true);
     setDevices([]);
     setError("");
+    console.log("Starting BLE scan...");
 
-    bleManager.startDeviceScan(null, null, (error: any, device: any) => {
-      if (error) {
-        console.error("Scan error:", error);
-        setError(`Scan error: ${error.message}`);
+    try {
+      bleManager.startDeviceScan(null, null, (error: any, device: any) => {
+        if (error) {
+          console.error("Scan error:", error);
+          setError(`Scan error: ${error.message}`);
+          setIsScanning(false);
+          return;
+        }
+
+        if (device) {
+          setDevices((prevDevices) => {
+            const deviceExists = prevDevices.some((d) => d.id === device.id);
+            if (!deviceExists) {
+              return [...prevDevices, device];
+            }
+            return prevDevices;
+          });
+        }
+      });
+
+      // Stop scanning after 10 seconds
+      setTimeout(() => {
+        if (bleManager) {
+          console.log("Stopping BLE scan...");
+          bleManager.stopDeviceScan();
+        }
         setIsScanning(false);
-        return;
-      }
-
-      if (device) {
-        setDevices((prevDevices) => {
-          const deviceExists = prevDevices.some((d) => d.id === device.id);
-          if (!deviceExists) {
-            return [...prevDevices, device];
-          }
-          return prevDevices;
-        });
-      }
-    });
-
-    setTimeout(() => {
-      if (bleManager) {
-        bleManager.stopDeviceScan();
-      }
+      }, 2000);
+    } catch (scanError) {
+      console.error("Unexpected scan error:", scanError);
+      setError("Unexpected scan error occurred.");
       setIsScanning(false);
-    }, 10000);
+    }
   };
 
   const connectToDevice = async (device: any) => {
@@ -164,15 +172,10 @@ export default function SettingsScreen() {
 
     try {
       setError("");
-
       console.log(`Connecting to device: ${device.name || device.id}`);
       const connectedDevice = await device.connect();
-
-      const discoveredDevice =
-        await connectedDevice.discoverAllServicesAndCharacteristics();
-
+      const discoveredDevice = await connectedDevice.discoverAllServicesAndCharacteristics();
       setConnectedDevice(discoveredDevice);
-
       await setupNotifications(discoveredDevice);
     } catch (err: any) {
       console.error("Connection error:", err);
@@ -188,29 +191,24 @@ export default function SettingsScreen() {
     }
 
     try {
-      device.monitorCharacteristicForService(
-        SERVICE_UUID,
-        CHARACTERISTIC_UUID,
-        (error: any, characteristic: any) => {
-          if (error) {
-            console.error("Notification error:", error);
-            setError(`Notification error: ${error.message}`);
-            return;
-          }
+      device.monitorCharacteristicForService(SERVICE_UUID, CHARACTERISTIC_UUID, (error: any, characteristic: { value: string; }) => {
+        if (error) {
+          // console.error("Notification error:", error);
+          return;
+        }
 
-          if (characteristic?.value) {
-            try {
-              const bytes = base64.toByteArray(characteristic.value);
-              const decodedValue = new TextDecoder().decode(bytes);
-              console.log("Received data:", decodedValue);
-              // setReceivedData(decodedValue);
-            } catch (decodeError) {
-              console.error("Decode error:", decodeError);
-              setError(`Failed to decode data: ${decodeError}`);
-            }
+        if (characteristic?.value) {
+          try {
+            const bytes = base64.toByteArray(characteristic.value);
+            const decodedValue = new TextDecoder().decode(bytes);
+            // console.log("Received data:", decodedValue);
+            setReceivedData(decodedValue);
+          } catch (decodeError) {
+            console.error("Decode error:", decodeError);
+            setError(`Failed to decode data: ${decodeError}`);
           }
         }
-      );
+      });
 
       console.log("Notification setup complete");
     } catch (err: any) {
@@ -218,9 +216,10 @@ export default function SettingsScreen() {
       setError(`Notification setup error: ${err?.message || "Unknown error"}`);
     }
   };
-
+  
   const disconnectDevice = async () => {
     if (!bleAvailable || !connectedDevice) {
+      setError("No device connected or BLE not available");
       setError("No device connected or BLE not available");
       return;
     }
@@ -229,54 +228,15 @@ export default function SettingsScreen() {
       await connectedDevice.cancelConnection();
       setConnectedDevice(null);
       setReceivedData("");
+      setError("");
       console.log("Disconnected from device");
-
-      setTimeout(() => {
-        bleManager.destroy();
-      }, 500);
     } catch (err: any) {
+      console.error("Disconnect error:", err);
+      setError(`Disconnect error: ${err?.message || "Unknown error"}`);
       console.error("Disconnect error:", err);
       setError(`Disconnect error: ${err?.message || "Unknown error"}`);
     }
   };
-
-  const readData = async () => {
-    // if (!bleAvailable || !connectedDevice) {
-    //   setError("No device connected or BLE not available");
-    //   console.log("error heere");
-    //   return;
-    // }
-
-    try {
-      const characteristic = await connectedDevice.readCharacteristicForService(
-        SERVICE_UUID,
-        CHARACTERISTIC_UUID
-      );
-
-      if (characteristic?.value) {
-        try {
-          const bytes = base64.toByteArray(characteristic.value);
-          const decodedValue = new TextDecoder().decode(bytes);
-          console.log("Read data:", decodedValue);
-          // setReceivedData(decodedValue);
-          setReceivedData("test");
-        } catch (decodeError) {
-          console.error("Decode error:", decodeError);
-          setError(`Failed to decode data: ${decodeError}`);
-        }
-      }
-    } catch (err: any) {
-      console.error("Read error:", err);
-      setError(`Please reconnect to device`);
-    }
-  };
-
-  // Account related functions
-  // In your settings.tsx file
-
-  // Add this import if you don't have it already
-
-  // Then modify your handleUpdate function:
   const handleUpdate = async () => {
     const user = auth.currentUser;
 
@@ -348,6 +308,7 @@ export default function SettingsScreen() {
     }
   };
 
+
   return (
     <ScrollView style={styles.container}>
       {/* Device Connection Section */}
@@ -368,16 +329,13 @@ export default function SettingsScreen() {
             {isScanning && <ActivityIndicator style={styles.loader} />}
 
             <ScrollView style={styles.deviceList}>
-              {devices.map((device) => (
+            {devices
+              .filter((device) => device.name)
+              .map((device) => (
                 <View key={device.id} style={styles.deviceItem}>
-                  <Text style={styles.deviceName}>
-                    {device.name || "Unnamed Device"}
-                  </Text>
+                  <Text style={styles.deviceName}>{device.name}</Text>
                   <Text style={styles.deviceId}>ID: {device.id}</Text>
-                  <Button
-                    title="Connect"
-                    onPress={() => connectToDevice(device)}
-                  />
+                  <Button title="Connect" onPress={() => connectToDevice(device)} />
                 </View>
               ))}
             </ScrollView>
@@ -441,6 +399,7 @@ export default function SettingsScreen() {
     </ScrollView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -508,14 +467,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   scanSection: {
-    marginTop: 10,
+    width: "100%",
+    // height: "75%",
   },
   loader: {
     marginTop: 10,
   },
   deviceList: {
-    marginTop: 15,
-    maxHeight: 200,
+    marginTop: 10,
+    flex: 1,
+    width: "90%",
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    margin: 12,
   },
   deviceItem: {
     padding: 12,
@@ -548,3 +512,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 });
+
