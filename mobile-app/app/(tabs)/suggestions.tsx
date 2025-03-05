@@ -89,7 +89,7 @@ export default function SuggestionsScreen() {
 			);
 
 			setRecommendations(data);
-			console.log("Recommendations fetched:", data);
+			// console.log("Recommendations fetched:", data);
 			await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
 
 		} catch (err) {

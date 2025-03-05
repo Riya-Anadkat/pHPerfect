@@ -1,4 +1,4 @@
-import { Text, View, StyleSheet, Dimensions, ScrollView } from "react-native";
+import { Text, View, StyleSheet, Dimensions, ScrollView, ActivityIndicator } from "react-native";
 import { useData } from "./dataContext";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
@@ -20,11 +20,23 @@ type Stats = {
 export default function Index() {
   const { receivedData } = useData();
   const [phData, setPhData] = useState<phDataPoints[]>([]);
+  const [allphData, setAllPhData] = useState<phDataPoints[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<Trend | null>(null);
+  const [loading, setLoading] = useState(true);
+  
 
   useEffect(() => {
-    if (receivedData !== "") {
+    console.log(" data:", receivedData);
+
+    if(phData.length < 1) {
+      setLoading(true);
+    }
+    else{
+      setLoading(false);
+    }
+
+    if (receivedData != "") {
       const time = getCurrentTime();
       const newEntry = { ph: receivedData, time };
 
@@ -41,9 +53,10 @@ export default function Index() {
   }, [receivedData]);
 
   useEffect(() => {
+    setAllPhData((prevData) => [...prevData, ...phData]);
     if (phData.length > 0) {
-      setStats(calculateStats(phData));
-      setTrend(calculateTrend(phData));
+      setStats(calculateStats(allphData));
+      setTrend(calculateTrend(allphData));
     }
   }, [phData]);
 
@@ -91,7 +104,14 @@ export default function Index() {
     const intercept = (sumY - slope * sumX) / n;
     return { slope, intercept };
   };
-
+if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#EC9595" />
+        <Text style={styles.loadingText}>Loading pH data...</Text>
+      </View>
+    );
+  }
   return (
     <ScrollView style={styles.container}>
       <View style={styles.currentStats}>
@@ -99,36 +119,38 @@ export default function Index() {
           Current pH: {receivedData} pH
         </Text>
       </View>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
-        <LineChart
-          data={{
-            labels: chartLabels,
-            datasets: [
-              { data: chartData, color: () => "black", strokeWidth: 2 },
-            ],
-          }}
-          width={Dimensions.get("window").width - 50}
-          height={230}
-          yAxisLabel=""
-          yAxisSuffix=""
-          yAxisInterval={1}
-          chartConfig={{
-            backgroundColor: "white",
-            backgroundGradientFrom: "white",
-            backgroundGradientTo: "white",
-            decimalPlaces: 2,
-            color: () => "black",
-            labelColor: () => "black",
-            style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
-            propsForLabels: {
-              fontSize: 12,
-            },
-          }}
-          bezier
-          style={styles.chartStyle}
-        />
-      </View>
+      {phData.length > 1 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
+          <LineChart
+            data={{
+              labels: chartLabels.map(label => label.replace(" PM", "").replace(" AM", "")),
+              datasets: [
+          { data: chartData, color: () => "black", strokeWidth: 2 },
+              ],
+            }}
+            width={Dimensions.get("window").width - 50}
+            height={230}
+            yAxisLabel=""
+            yAxisSuffix=""
+            yAxisInterval={1}
+            chartConfig={{
+              backgroundColor: "white",
+              backgroundGradientFrom: "white",
+              backgroundGradientTo: "white",
+              decimalPlaces: 2,
+              color: () => "black",
+              labelColor: () => "black",
+              style: { borderRadius: 16, paddingLeft: 0, paddingBottom: 0 },
+              propsForLabels: {
+                fontSize: 12,
+              },
+            }}
+            bezier
+            style={styles.chartStyle}
+          />
+        </View>
+      )}
       {trend && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trendline</Text>
@@ -258,4 +280,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: "center",
   },
+  loadingContainer: {
+		flex: 1,
+		justifyContent: "center",
+		alignItems: "center",
+		backgroundColor: "#E7E7E7",
+	},
+	loadingText: {
+		marginTop: 10,
+		fontSize: 16,
+		color: "#333",
+	},
 });

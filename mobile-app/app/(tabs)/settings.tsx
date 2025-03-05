@@ -64,7 +64,6 @@ export default function SettingsScreen() {
       }
     };
   }, []);
-
   useEffect(() => {
     if (!connectedDevice) return;
 
@@ -202,7 +201,7 @@ export default function SettingsScreen() {
           try {
             const bytes = base64.toByteArray(characteristic.value);
             const decodedValue = new TextDecoder().decode(bytes);
-            console.log("Received data:", decodedValue);
+            // console.log("Received data:", decodedValue);
             setReceivedData(decodedValue);
           } catch (decodeError) {
             console.error("Decode error:", decodeError);
@@ -330,16 +329,13 @@ export default function SettingsScreen() {
             {isScanning && <ActivityIndicator style={styles.loader} />}
 
             <ScrollView style={styles.deviceList}>
-              {devices.map((device) => (
+            {devices
+              .filter((device) => device.name)
+              .map((device) => (
                 <View key={device.id} style={styles.deviceItem}>
-                  <Text style={styles.deviceName}>
-                    {device.name || "Unnamed Device"}
-                  </Text>
+                  <Text style={styles.deviceName}>{device.name}</Text>
                   <Text style={styles.deviceId}>ID: {device.id}</Text>
-                  <Button
-                    title="Connect"
-                    onPress={() => connectToDevice(device)}
-                  />
+                  <Button title="Connect" onPress={() => connectToDevice(device)} />
                 </View>
               ))}
             </ScrollView>
@@ -472,7 +468,7 @@ const styles = StyleSheet.create({
   },
   scanSection: {
     width: "100%",
-    height: "75%",
+    // height: "75%",
   },
   loader: {
     marginTop: 10,

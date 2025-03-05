@@ -2,11 +2,11 @@
 import { Platform } from "react-native";
 
 // base api url
-const LAPTOP_IP = "10.36.186.222"; // Replace with your actual IP
+const LAPTOP_IP = "172.20.10.2"; // Replace with your actual IP
 
 const API_URL =
 	Platform.OS === "web"
-		? `http://localhost:3001/api`
+		? `http://${LAPTOP_IP}:3001/api`
 		: Platform.OS === "android"
 		? `http://${LAPTOP_IP}:3001/api`
 		: Platform.OS === "ios"
