@@ -1,4 +1,11 @@
-import { Text, View, StyleSheet, Dimensions, ScrollView } from "react-native";
+import {
+  Text,
+  View,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import { useFakeData } from "./fakeDataContext";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
@@ -22,6 +29,15 @@ export default function Index() {
   const [phData, setPhData] = useState<phDataPoints[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<Trend | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load posts when component mounts
+  useEffect(() => {
+    // Simulate fetching posts from backend
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   useEffect(() => {
     if (fakeReceivedData !== "") {
@@ -91,6 +107,16 @@ export default function Index() {
     const intercept = (sumY - slope * sumX) / n;
     return { slope, intercept };
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#EC9595" />
+        <Text style={styles.loadingText}>Loading pH stats...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -237,6 +263,17 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     fontSize: 18,
     padding: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E7E7E7",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#333",
   },
   chartStyle: {
     marginVertical: 0,
