@@ -1,5 +1,12 @@
-import { Text, View, StyleSheet, Dimensions, ScrollView, ActivityIndicator } from "react-native";
 import { useData } from "./dataContext";
+import {
+  Text,
+  View,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
 
@@ -24,7 +31,6 @@ export default function Index() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
-  
 
   useEffect(() => {
     console.log(" data:", receivedData);
@@ -104,14 +110,17 @@ export default function Index() {
     const intercept = (sumY - slope * sumX) / n;
     return { slope, intercept };
   };
-if (loading) {
+ 
+  // Loading state
+  if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#EC9595" />
-        <Text style={styles.loadingText}>Loading pH data...</Text>
+        <Text style={styles.loadingText}>Loading pH stats...</Text>
       </View>
     );
   }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.currentStats}>
@@ -260,6 +269,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     padding: 2,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E7E7E7",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#333",
+  },
   chartStyle: {
     marginVertical: 0,
     borderRadius: 10,
@@ -280,15 +300,4 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: "center",
   },
-  loadingContainer: {
-		flex: 1,
-		justifyContent: "center",
-		alignItems: "center",
-		backgroundColor: "#E7E7E7",
-	},
-	loadingText: {
-		marginTop: 10,
-		fontSize: 16,
-		color: "#333",
-	},
 });
