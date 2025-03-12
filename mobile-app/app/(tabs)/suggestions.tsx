@@ -22,7 +22,7 @@ import {
 import { useData } from "./dataContext";
 
 LogBox.ignoreLogs(['new NativeEventEmitter']);
-const CACHE_EXPIRATION = 20 * 60 * 1000;
+// const CACHE_EXPIRATION = 20 * 60 * 1000;
 
 export default function SuggestionsScreen() {
 	const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export default function SuggestionsScreen() {
 	};
 	const [symptoms, setSymptoms] = useState<string[]>([]);
 
-	const roundPh = (ph: number) => Math.round(ph * 2) / 2;
+	// const roundPh = (ph: number) => Math.round(ph * 2) / 2;
 
 	const loadRecommendations = async (refresh = false) => {
 		if (refresh) {
@@ -70,18 +70,6 @@ export default function SuggestionsScreen() {
 
 		try {
 			const roundedPh = (parseFloat(receivedData) || 0);
-			const CACHE_KEY = `recommendations_cache_${roundedPh}`;
-
-			const cachedData = await AsyncStorage.getItem(CACHE_KEY);
-			if (cachedData && symptoms.length === 0) {
-				const { data, timestamp } = JSON.parse(cachedData);
-				if (Date.now() - timestamp < CACHE_EXPIRATION) {
-					setRecommendations(data);
-					setLoading(false);
-					setRefreshing(false);
-					return;
-				}
-			}
 
 			const data = await fetchRecommendations(
 				roundedPh,
@@ -89,9 +77,6 @@ export default function SuggestionsScreen() {
 			);
 
 			setRecommendations(data);
-			// console.log("Recommendations fetched:", data);
-			await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
-
 		} catch (err) {
 			setError("Failed to fetch recommendations. Please try again later.");
 			console.error("Error fetching recommendations:", err);
@@ -104,14 +89,22 @@ export default function SuggestionsScreen() {
 
 	// Fetch recommendations when component mounts
 	useEffect(() => {
-		loadRecommendations();
+		const fetchData = async () => {
+			setRefreshing(true);
+			setSymptoms([]); 
+			await loadRecommendations(true);
+		};
+		fetchData();
 	}, []);
 
 	// Handle pull-to-refresh
 	const onRefresh = async () => {
+		setLoading(true);
 		setRefreshing(true);
 		setSymptoms([]); 
 		await loadRecommendations(true);
+		setRefreshing(false);
+		setLoading(false);
 	};
 
 	// Render loading state
@@ -143,6 +136,7 @@ export default function SuggestionsScreen() {
 		<SafeAreaView style={styles.container}>
 			<ScrollView
 				style={styles.scrollView}
+				contentContainerStyle={{ flexGrow: 1, minHeight: "100%" }} 
 				refreshControl={
 					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
 				}
@@ -168,7 +162,11 @@ export default function SuggestionsScreen() {
 						style={styles.textInput}
 						placeholder="Enter symptoms separated by commas (eg. dandruff, itchiness)"
 						onChangeText={(text) => setSymptoms(text.split(",").map(s => s.trim()))}
-						onSubmitEditing={() => loadRecommendations(true)}
+						onSubmitEditing={async () => {
+							setLoading(true);
+							await loadRecommendations(true);
+							setLoading(false);
+						}}
 						returnKeyType="done"
 					/>
 				</View>
@@ -259,7 +257,11 @@ function ProductCard({
 						/>
 					) : (
 						<View style={styles.placeholderImage}>
-							<Text style={styles.placeholderText}>No Image</Text>
+							<Image
+								source={require('@/assets/icon.png')}
+								style={styles.productImage}
+								resizeMode="contain"
+							/>
 						</View>
 					)}
 				</View>

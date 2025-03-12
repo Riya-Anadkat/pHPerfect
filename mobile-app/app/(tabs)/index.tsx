@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { LineChart } from "react-native-chart-kit";
+import { fetchPhHistory } from "../../services/api.js";
 
 type phDataPoints = {
   ph: string;
@@ -31,24 +32,52 @@ export default function Index() {
   const [trend, setTrend] = useState<Trend | null>(null);
   const [loading, setLoading] = useState(true);
   const [overallData, setOverallData] = useState<phDataPoints[]>([]);
+  const [longTermData, setLongTermData] = useState<phDataPoints[]>([]);
+  
+  useEffect(() => {
+    const fetchLongTermData = async () => {
+      try {
+        const history = await fetchPhHistory();
+
+        if (history && Array.isArray(history)) {
+          const formattedData = history.map((item) => ({
+            ph: String(item.ph_value), // Convert to string for consistency
+            time: new Date(item.timestamp).toLocaleDateString(), // Format timestamp
+          }));
+          // console.log(formattedData);
+          setLongTermData(formattedData);
+        }
+      } catch (error) {
+        console.error("Error fetching long-term pH data:", error);
+      }
+    };
+
+    fetchLongTermData(); // Fetch immediately on mount
+    const interval = setInterval(fetchLongTermData, 60000); // Fetch every 60 seconds
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
 
   useEffect(() => {
-    console.log(" data:", receivedData);
-
+    // console.log(" data:", receivedData);
     if(phData.length < 1) {
       setLoading(true);
     }
     else{
       setLoading(false);
     }
-
-    if (receivedData != "") {
+    // if(receivedData == "Circuit is not connected"){
+    //   setLoading(true);
+    // }
+    // else{
+    //   setLoading(false);
+    // }
+    if (receivedData !== "") {
       const time = getCurrentTime();
       const newEntry = { ph: receivedData, time };
 
       setPhData((prevData) => {
         let updatedData = [...prevData, newEntry];
-        console.log("overall", overallData);
 
         if (updatedData.length > 10) {
           updatedData.shift();
@@ -56,7 +85,6 @@ export default function Index() {
 
         return updatedData;
       });
-
       setOverallData((prevData) => {
         let updatedOverallData = [...prevData, newEntry];
         return updatedOverallData; // Store the overall data in state
@@ -66,32 +94,37 @@ export default function Index() {
 
   useEffect(() => {
     if (phData.length > 0) {
-      setStats(calculateStats(overallData)); // Use overallData for stats
-      // setStats(calculateStats(phData));
+      setStats(calculateStats(overallData)); 
       setTrend(calculateTrend(phData));
     }
-  }, [phData, overallData]);
+  }, [phData]);
 
   const getCurrentTime = () => {
     const now = new Date();
     return now.toLocaleTimeString();
   };
 
-  // Format time for x-axis labels
-  // const formatTimeForChart = (timeString: string) => {
-  //   // Extract just the hours and minutes
-  //   const timeParts = timeString.split(":");
-  //   return `${timeParts[0]}:${timeParts[1]}`;
-  // };
+  const longTermChartData = longTermData
+  .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()) // Ensure ascending order
+  .map((item) => parseFloat(item.ph))
+  .filter((value) => value >= 3 && value <= 10);
 
-  // Then when creating your chart
+  const longTermChartLabels = longTermData.map((item, index) =>{
+        // index === 0 ? item.time : ""
+    return index % 2 === 0 ? item.time : "";
+
+  });
+
+  // const chartData = phData.map((item) => parseFloat(item.ph));
+  const chartData = phData
+  .map((item) => parseFloat(item.ph))
+  .filter((value) => value >= 3 && value <= 11);
+  
   const chartLabels = phData.map((item, index) => {
     // Only show every other label to prevent crowding
     return index % 3 === 0 ? item.time : "";
   });
-
-  const chartData = phData.map((item) => parseFloat(item.ph));
-  // const chartLabels = phData.map((item) => item.time);
+  
   const trendData = phData.map((_, index) =>
     trend ? trend.slope * index + trend.intercept : 0
   );
@@ -99,7 +132,6 @@ export default function Index() {
   const calculateStats = (data: phDataPoints[]): Stats | null => {
     if (!data.length) return null;
     const values = overallData.map((item) => parseFloat(item.ph));
-    // const values = data.map((item) => parseFloat(item.ph));
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const sorted = [...values].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
@@ -130,47 +162,46 @@ export default function Index() {
     const intercept = (sumY - slope * sumX) / n;
     return { slope, intercept };
   };
- 
-  // Loading state
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#EC9595" />
-        <Text style={styles.loadingText}>Loading pH stats...</Text>
-      </View>
-    );
-  }
+ // Loading state
+ if (loading) {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#EC9595" />
+      <Text style={styles.loadingText}>Loading pH stats...</Text>
+    </View>
+  );
+}
 
-  const withAxisControl = [
-    3.5, // Min value (will be invisible)
-    9.5, // Max value (will be invisible)
-    ...chartData,
-  ];
+// const withAxisControl = [
+//   3.5, // Min value (will be invisible)
+//   9.5, // Max value (will be invisible)
+//   ...chartData,
+// ];
 
-  const trendWithAxisControl = [
-    3.5, // Min value (will be invisible)
-    9.5, // Max value (will be invisible)
-    ...trendData,
-  ];
-
+// const trendWithAxisControl = [
+//   3.5, // Min value (will be invisible)
+//   9.5, // Max value (will be invisible)
+//   ...trendData,
+// ];
   return (
     <ScrollView style={styles.container}>
       <View style={styles.currentStats}>
         <Text style={styles.currentStatsText}>
-          Current pH: {receivedData} pH
+          {receivedData.length<1 || parseFloat(receivedData) >= 11 ? "pH sensor not connected" : "Current pH: " + receivedData+"pH"}
         </Text>
       </View>
+      {phData.length > 1 && parseFloat(receivedData) < 11 && (
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Your pH Levels Over Time</Text>
+        <Text style={styles.sectionTitle}>Your current pH Levels</Text>
         <LineChart
           data={{
             labels: chartLabels,
-            // datasets: [
+            //   datasets: [
             //   { data: chartData, color: () => "black", strokeWidth: 2 },
             // ],
             datasets: [
               {
-                data: withAxisControl,
+                data: chartData,
                 color: (opacity = 1) => {
                   // Make the first two points (min/max controls) transparent
                   return opacity < 1 ? `rgba(0, 0, 0, ${opacity})` : "black";
@@ -200,7 +231,46 @@ export default function Index() {
           style={styles.chartStyle}
         />
       </View>
-      {trend && (
+              )}
+
+
+{longTermData.length > 1 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Long-Term pH Levels</Text>
+          <LineChart
+            data={{
+              labels: longTermChartLabels,
+              datasets: [{ 
+                color: (opacity = 1) => {
+                  // Make the first two points (min/max controls) transparent
+                  return opacity < 1 ? `rgba(0, 0, 0, ${opacity})` : "black";
+                },
+                withDots: false,
+                data: longTermChartData }],
+            }}
+            width={Dimensions.get("window").width - 50}
+            height={230}
+            yAxisLabel=""
+            yAxisSuffix=""
+            yAxisInterval={1}
+            fromZero={false}
+            chartConfig={{
+              backgroundColor: "white",
+              backgroundGradientFrom: "white",
+              backgroundGradientTo: "white",
+              decimalPlaces: 2,
+              color: () => "black",
+              labelColor: () => "black",
+              style: { borderRadius: 16 },
+              propsForLabels: { fontSize: 12 },
+            }}
+            bezier
+            style={styles.chartStyle}
+          />
+        </View>
+      )}
+        
+      {trend && parseFloat(receivedData) < 11 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Trendline</Text>
           <LineChart
@@ -211,7 +281,7 @@ export default function Index() {
               // ],
               datasets: [
                 {
-                  data: trendWithAxisControl,
+                  data: trendData,
                   color: (opacity = 1) => {
                     // Make the first two points (min/max controls) transparent
                     return opacity < 1 ? `rgba(0, 0, 0, ${opacity})` : "black";
@@ -246,7 +316,7 @@ export default function Index() {
           />
         </View>
       )}
-      {stats && (
+      {stats && parseFloat(receivedData) < 11 &&(
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Summary of All Statistics</Text>
           <View style={styles.row}>

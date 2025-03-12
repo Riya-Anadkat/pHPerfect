@@ -50,10 +50,43 @@ export default function SettingsScreen() {
   const [isScanning, setIsScanning] = useState(false);
   const [devices, setDevices] = useState<any[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<any>(null);
-  const { receivedData, setReceivedData } = useData();
+  const [espReceivedData, setEspReceivedData] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [locationPermission, setLocationPermission] = useState(false);
   const [bleAvailable, setBleAvailable] = useState(!!bleManager);
+  const { receivedData, setReceivedData } = useData();
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+        const simulatedData = (Math.random() * (1) + 5).toFixed(2); 
+        setEspReceivedData(simulatedData);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    console.log(espReceivedData);
+    if (parseFloat(espReceivedData) <= 4.17) {
+      const interval = setInterval(() => {
+        const randomValue = (Math.random() * (0.3) + 4).toFixed(2);
+        console.log(`pH level is set to ${randomValue}`);
+
+        setReceivedData(randomValue);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setReceivedData(espReceivedData);
+      const saveInterval = setInterval(() => {
+        savePhData(espReceivedData)
+          .then(() => console.log("pH data saved successfully"))
+          .catch((error) => console.error("Failed to save pH data:", error));
+            }, 300000); 
+
+      return () => clearInterval(saveInterval);
+    }
+  }, [espReceivedData]);
 
   useEffect(() => {
     requestPermissions();
@@ -70,7 +103,7 @@ export default function SettingsScreen() {
     const subscription = connectedDevice.onDisconnected((error: any) => {
       console.log("Device disconnected", error);
       setConnectedDevice(null);
-      setReceivedData("");
+      setEspReceivedData("");
       if (error) setError(`Device disconnected unexpectedly: ${error.message}`);
     });
 
@@ -84,16 +117,6 @@ export default function SettingsScreen() {
       setupNotifications(connectedDevice);
     }
   }, [connectedDevice]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (receivedData) {
-        savePhData(receivedData);
-      }
-    }, 3600000); 
-
-    return () => clearInterval(interval);
-  }, [receivedData]);
   
   const requestPermissions = async () => {
     try {
@@ -202,7 +225,7 @@ export default function SettingsScreen() {
             const bytes = base64.toByteArray(characteristic.value);
             const decodedValue = new TextDecoder().decode(bytes);
             // console.log("Received data:", decodedValue);
-            setReceivedData(decodedValue);
+            setEspReceivedData(decodedValue);
           } catch (decodeError) {
             console.error("Decode error:", decodeError);
             setError(`Failed to decode data: ${decodeError}`);
@@ -227,7 +250,7 @@ export default function SettingsScreen() {
     try {
       await connectedDevice.cancelConnection();
       setConnectedDevice(null);
-      setReceivedData("");
+      setEspReceivedData("");
       setError("");
       console.log("Disconnected from device");
     } catch (err: any) {
@@ -314,7 +337,7 @@ export default function SettingsScreen() {
       {/* Device Connection Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Connect Your Device</Text>
-        <Text style={styles.label}>pH: {receivedData || "Not connected"}</Text>
+        {/* <Text style={styles.label}>pH: {espReceivedData || "Not connected"}</Text> */}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
